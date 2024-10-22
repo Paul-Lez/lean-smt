@@ -41,12 +41,12 @@ structure TranslationM.State where
   propegated upwards during translation. -/
   localFVars : FVarIdSet := .empty
   /-- Memoizes `applyTranslators?` calls together with what they add to `depConstants` and `depFVars`. -/
-  cache : HashMap Expr (Option (Term × NameSet × FVarIdSet)) := .empty
+  cache : Std.HashMap Expr (Option (Term × NameSet × FVarIdSet)) := .empty
   /-- A mapping from a scopped name to a suffix index that makes it unique. This field does not handle
   scopping, which should be handled by `withScopedName` -/
-  scopedNames : HashMap Name Nat := .empty
+  scopedNames : Std.HashMap Name Nat := .empty
   /-- A mapping from fvars to unique names. -/
-  uniqueFVarNames : HashMap FVarId String := .empty
+  uniqueFVarNames : Std.HashMap FVarId String := .empty
 
 abbrev TranslationM := StateT TranslationM.State MetaM
 
@@ -63,7 +63,7 @@ namespace Translator
 
 private unsafe def getTranslatorsUnsafe : MetaM (List (Translator × Name)) := do
   let env ← getEnv
-  let names := ((smtExt.getState env).findD ``Translator {}).toList
+  let names := ((smtExt.getState env).getD ``Translator {}).toList
   -- trace[smt.attr] "Translators: {names}"
   let mut translators := []
   for name in names do
@@ -79,7 +79,7 @@ opaque getTranslators : MetaM (List (Translator × Name))
 
 /-- Return a cached translation of `e` if found, otherwise run `k e` and cache the result. -/
 def withCache (k : Translator) (e : Expr) : TranslationM (Option Term) := do
-  match (← get).cache.find? e with
+  match (← get).cache.get? e with
   | some (some (tm, depConsts, depFVars)) =>
     modify fun st => { st with
       depConstants := st.depConstants.union depConsts
@@ -105,7 +105,7 @@ def withScopedName (n : Name) (b : Expr) (k : Name → TranslationM α) : Transl
   let mut n' := n
   let mut scopedNames := state.scopedNames
   while ← b.hasAnyFVar' (·.getUserName >>= (return · == n')) do
-    let i := scopedNames.findD n 1
+    let i := scopedNames.getD n 1
     n' := n.appendIndexAfter i
     scopedNames := scopedNames.insert n (i + 1)
   set { state with scopedNames := scopedNames }
@@ -143,7 +143,7 @@ partial def applyTranslators? : Translator := withCache fun e => do
           return symbolT (← fv.getUserName).toString
         else
           modify fun st => { st with depFVars := st.depFVars.insert fv }
-          match (← get).uniqueFVarNames.find? fv with
+          match (← get).uniqueFVarNames.get? fv with
           | some n => return symbolT n
           | none   => return symbolT (← fv.getUserName).toString
       | const nm _ =>

@@ -11,7 +11,7 @@ import Lean.Message
 
 open Lean Std
 
-def Graph (α) (β) [BEq α] [Hashable α] := Lean.HashMap α (Lean.HashMap α β)
+def Graph (α) (β) [BEq α] [Hashable α] := Std.HashMap α (Std.HashMap α β)
 
 namespace Graph
 
@@ -22,7 +22,7 @@ def empty : Graph α β := HashMap.empty
 def vertices : List α := g.fold (fun a v _ => v :: a) []
 
 def neighbors? : Option (List α) :=
-  g.find? v >>= fun es => some (es.fold (fun a v _ => v :: a) [])
+  g.get? v >>= fun es => some (es.fold (fun a v _ => v :: a) [])
 
 def neighbors! : List α := match (g.neighbors? v) with
   | some ns => ns
@@ -30,16 +30,16 @@ def neighbors! : List α := match (g.neighbors? v) with
 
 def addVertex : Graph α β := g.insert v HashMap.empty
 
-def addEdge : Graph α β := g.insert v ((g.find! v).insert u e)
+def addEdge : Graph α β := g.insert v ((g.get! v).insert u e)
 
-def weight? : Option β := g.find? v >>= fun es => es.find? u
+def weight? : Option β := g.get? v >>= fun es => es.get? u
 
 partial def dfs [Monad m] (f : α → m Unit) : m Unit :=
-  StateT.run' (s := HashSet.empty) do
+  StateT.run' (s := Std.HashSet.empty) do
     for v in g.vertices do
       visitVertex v
 where
-  visitVertex (v : α) : StateT (Lean.HashSet α) m Unit := do
+  visitVertex (v : α) : StateT (Std.HashSet α) m Unit := do
     let vs ← get
     if vs.contains v then
       return
@@ -49,11 +49,11 @@ where
     f v
 
 partial def orderedDfs [Monad m] (vs : List α) (f : α → m Unit) : m Unit :=
-  StateT.run' (s := HashSet.empty) do
+  StateT.run' (s := Std.HashSet.empty) do
     for v in vs do
       visitVertex v
 where
-  visitVertex (v : α) : StateT (Lean.HashSet α) m Unit := do
+  visitVertex (v : α) : StateT (Std.HashSet α) m Unit := do
     let vs ← get
     if vs.contains v then
       return
